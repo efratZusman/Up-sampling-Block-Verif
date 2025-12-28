@@ -15,31 +15,31 @@ class tx_config_driver extends uvm_driver #(tx_config_seq_item);
       
 task run_phase(uvm_phase phase);
 
-  // ערכי ברירת מחדל יציבים
-  cfg_vif.upsampling_factor <= 2'b00;
-  cfg_vif.bypass_enable     <= 0;
-  cfg_vif.upsample_mode     <= 0;
+  // stable defaults (drive with blocking so value is visible immediately)
+  cfg_vif.upsampling_factor = 2'b00;
+  cfg_vif.bypass_enable     = 0;
+  cfg_vif.upsample_mode     = 0;
 
   @(posedge cfg_vif.clk);
 
   forever begin
     seq_item_port.get_next_item(req);
 
-    // דרייב סינכרוני
-    cfg_vif.upsampling_factor <= req.factor;
-    cfg_vif.bypass_enable     <= req.bypass;
-    cfg_vif.upsample_mode     <= req.mode;
+    // drive synchronously for one cycle (use blocking assign so signal is steady)
+    cfg_vif.upsampling_factor = req.factor;
+    cfg_vif.bypass_enable     = req.bypass;
+    cfg_vif.upsample_mode     = req.mode;
 
-    @(posedge cfg_vif.clk);        // חובה – שחרור time
+    @(posedge cfg_vif.clk);        // hold for a clock
 
     seq_item_port.item_done();
   end
 endtask
 
   task drive_cfg(tx_config_seq_item req);
-    cfg_vif.upsampling_factor <= req.factor;
-    cfg_vif.bypass_enable     <= req.bypass;
-    cfg_vif.upsample_mode     <= req.mode;
+    cfg_vif.upsampling_factor = req.factor;
+    cfg_vif.bypass_enable     = req.bypass;
+    cfg_vif.upsample_mode     = req.mode;
   endtask
 
 endclass

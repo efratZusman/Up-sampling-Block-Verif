@@ -20,8 +20,9 @@ module tb_top;
 
   // reset
   initial begin
+    // assert reset at time 0 to initialize DUT state, then release after 2 clock edges
     rst_n = 0;
-    repeat(5) @(posedge clk);
+    repeat(2) @(posedge clk);
     rst_n = 1;
   end
 
@@ -66,6 +67,10 @@ initial begin
 
   // להתחיל הקלטה מיד
   #10ns;
+
+  // clock & reset
+  $dumpvars(0, tb_top.clk);
+  $dumpvars(0, tb_top.rst_n);
 
   // DATA IF
   $dumpvars(0, tb_top.data_if_i.tx_data_i);

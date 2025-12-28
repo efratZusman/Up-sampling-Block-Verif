@@ -9,7 +9,9 @@ class tx_data_seq_item extends uvm_sequence_item;
   rand bit        valid;
   rand int        num_clk_dly;
 
-  constraint dly_c { num_clk_dly > 0; }
+  // limit drive length to a small, reasonable range to avoid extremely long
+  // repeated drives that would flood the DUT and produce many outputs.
+  constraint dly_c { num_clk_dly inside {[1:4]}; }
 
   function new(string name="tx_data_seq_item");
     super.new(name);

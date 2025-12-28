@@ -15,7 +15,10 @@ class tx_data_basic_seq extends uvm_sequence #(tx_data_seq_item);
     repeat(10) begin
       req = tx_data_seq_item::type_id::create("req");
       start_item(req);
+      // randomize but force single-cycle (or small) drive length for determinism
       assert(req.randomize() with { valid == 1; });
+      // ensure a short drive so we don't flood the DUT with repeated identical samples
+      req.num_clk_dly = 1;
       finish_item(req);
     end
   endtask

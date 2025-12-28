@@ -1,5 +1,4 @@
 interface out_if(input logic clk);
-  logic rst_n;
   logic [15:0] up_data_i;
   logic [15:0] up_data_q;
   logic        up_data_valid;

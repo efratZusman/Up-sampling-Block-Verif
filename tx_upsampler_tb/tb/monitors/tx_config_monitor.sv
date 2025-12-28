@@ -31,7 +31,7 @@ class tx_config_monitor extends uvm_monitor;
     cfg_item.bypass = cfg_vif.bypass_enable;
     cfg_item.mode   = cfg_vif.upsample_mode;
 
-    `uvm_info(get_type_name(),"CONFIG collected",UVM_NONE)
+//     `uvm_info(get_type_name(),"CONFIG collected",UVM_NONE)
     cfg_port.write(cfg_item);
   endtask
 

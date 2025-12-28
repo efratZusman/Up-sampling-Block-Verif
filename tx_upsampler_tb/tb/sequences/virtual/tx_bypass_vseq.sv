@@ -1,5 +1,9 @@
 class tx_bypass_vseq extends tx_base_vseq;
   `uvm_object_utils(tx_bypass_vseq)
+  
+    function new(string name="tx_bypass_vseq");
+    super.new(name);
+  endfunction
 
   task body();
     tx_config_basic_seq cfg_seq;

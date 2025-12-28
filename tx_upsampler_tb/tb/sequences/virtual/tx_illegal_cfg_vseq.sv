@@ -1,5 +1,9 @@
 class tx_illegal_cfg_vseq extends tx_base_vseq;
   `uvm_object_utils(tx_illegal_cfg_vseq)
+  
+  function new(string name="tx_illegal_cfg_vseq");
+    super.new(name);
+  endfunction
 
   task body();
     tx_config_illegal_seq cfg_seq;

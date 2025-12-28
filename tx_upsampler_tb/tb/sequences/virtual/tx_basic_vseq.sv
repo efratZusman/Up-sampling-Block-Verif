@@ -1,5 +1,12 @@
+import uvm_pkg::*;
+`include "uvm_macros.svh"
+
 class tx_basic_vseq extends tx_base_vseq;
   `uvm_object_utils(tx_basic_vseq)
+
+  function new(string name="tx_basic_vseq");
+    super.new(name);
+  endfunction
 
   task body();
     tx_config_basic_seq cfg_seq;
@@ -12,3 +19,5 @@ class tx_basic_vseq extends tx_base_vseq;
     data_seq.start(env.data_agent_i.sequencer_i);
   endtask
 endclass
+
+

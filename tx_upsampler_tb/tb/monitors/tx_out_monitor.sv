@@ -32,7 +32,7 @@ class tx_out_monitor extends uvm_monitor;
     out_item.i = out_vif.up_data_i;
     out_item.q = out_vif.up_data_q;
 
-    `uvm_info(get_type_name(),"OUTPUT collected",UVM_NONE)
+//     `uvm_info(get_type_name(),"OUTPUT collected",UVM_NONE)
     out_port.write(out_item);
   endtask
 

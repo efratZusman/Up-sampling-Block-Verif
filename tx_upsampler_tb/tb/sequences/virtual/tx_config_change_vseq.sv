@@ -1,5 +1,9 @@
 class tx_config_change_vseq extends tx_base_vseq;
   `uvm_object_utils(tx_config_change_vseq)
+  
+      function new(string name="tx_config_change_vseq");
+    super.new(name);
+  endfunction
 
   task body();
     tx_config_change_seq cfg_seq;

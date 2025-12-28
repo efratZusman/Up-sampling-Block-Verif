@@ -1,9 +1,3 @@
-//====================================================
-// TX Upsampler – Spec-aligned RTL (FIFO=16) + Stream-latched config
-// Modes: Zero-Insertion, Sample-and-Hold, Bypass (1:1)
-// Bypass/factor/mode are latched ONLY at stream start.
-//====================================================
-
 module tx_upsampler (
     input              clk,
     input              rst_n,
@@ -107,6 +101,8 @@ module tx_upsampler (
             up_data_valid  <= 1'b0;
 
             sample_count   <= 8'd0;
+
+            $display("Reset: in_stream = %b, up_data_valid = %b", in_stream, up_data_valid);
         end else begin
             // -------------------------
             // Stream tracking + latch config at stream start only
@@ -116,9 +112,10 @@ module tx_upsampler (
                 bypass_latched <= bypass_enable;
                 factor_latched <= upsampling_factor;
                 mode_latched   <= upsample_mode;
+                $display("Stream started: in_stream = %b, tx_data_valid = %b", in_stream, tx_data_valid);
             end else if (stream_end) begin
                 in_stream <= 1'b0;
-                // leave latched values as-is until next stream_start
+                $display("Stream ended: in_stream = %b", in_stream);
             end
 
             // -------------------------
@@ -137,6 +134,8 @@ module tx_upsampler (
 
                 if (tx_data_valid)
                     sample_count <= sample_count + 8'd1;
+
+                $display("Bypass mode: up_data_valid = %b, sample_count = %d", up_data_valid, sample_count);
             end
 
             // -------------------------
@@ -151,6 +150,7 @@ module tx_upsampler (
                     buf_i[wr_ptr] <= tx_data_i;
                     buf_q[wr_ptr] <= tx_data_q;
                     wr_ptr        <= wr_ptr + 4'd1;
+                    $display("FIFO write: wr_ptr = %d, buffer_level = %d", wr_ptr, buffer_level);
                 end
 
                 // 2) FIFO read & start repetition window if needed
@@ -162,6 +162,7 @@ module tx_upsampler (
                     // Start repetitions: rep_idx=1 means "we are producing now"
                     // with (rep_idx-1) representing the slot index 0..factor-1.
                     rep_idx <= 5'd1;
+                    $display("FIFO read: rep_idx = %d, rd_ptr = %d", rep_idx, rd_ptr);
                 end
 
                 // 3) Produce output if active (rep_idx != 0)
@@ -185,6 +186,7 @@ module tx_upsampler (
                     end
 
                     sample_count <= sample_count + 8'd1;
+                    $display("Producing data: up_data_valid = %b, up_data_i = %d, up_data_q = %d, sample_count = %d", up_data_valid, up_data_i, up_data_q, sample_count);
 
                     // advance repetition window
                     if (rep_idx == factor_val) begin
@@ -206,9 +208,10 @@ module tx_upsampler (
                         2'b01: buffer_level <= buffer_level - 4'd1; // read only
                         default: buffer_level <= buffer_level;      // none or both
                     endcase
+
+                    $display("Buffer level updated: buffer_level = %d", buffer_level);
                 end
             end
         end
     end
-
 endmodule

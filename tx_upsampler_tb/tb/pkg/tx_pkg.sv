@@ -1,64 +1,68 @@
-package tx_pkg;
+// must be visible before class declaration
+`uvm_analysis_imp_decl(_data_in)
+`uvm_analysis_imp_decl(_cfg)
+`uvm_analysis_imp_decl(_out)
 
-  import uvm_pkg::*;
-  `include "uvm_macros.svh"
+class tx_scoreboard extends uvm_scoreboard;
+  `uvm_component_utils(tx_scoreboard)
 
-  // interfaces
-  `include "data_if.sv"
-  `include "config_if.sv"
-  `include "out_if.sv"
+  // typed analysis imps with unique callback names
+  uvm_analysis_imp_data_in #(tx_data_seq_item,   tx_scoreboard) data_in_imp;
+  uvm_analysis_imp_cfg     #(tx_config_seq_item, tx_scoreboard) cfg_imp;
+  uvm_analysis_imp_out     #(tx_data_seq_item,   tx_scoreboard) out_imp;
 
-  // sequence items
-  `include "tx_data_seq_item.sv"
-  `include "tx_config_seq_item.sv"
+  bit [1:0] factor_latched;
+  bit       bypass_latched;
+  bit       mode_latched;
 
-  // sequencers
-  `include "tx_data_sequencer.sv"
-  `include "tx_config_sequencer.sv"
+  int rep_count;
+  tx_data_seq_item last_data;
 
-  // sequences
-  `include "tx_data_basic_seq.sv"
-  `include "tx_data_burst_seq.sv"
-  `include "tx_data_idle_seq.sv"
+  function new(string name="tx_scoreboard", uvm_component parent=null);
+    super.new(name,parent);
+    data_in_imp = new("data_in_imp", this);
+    cfg_imp     = new("cfg_imp", this);
+    out_imp     = new("out_imp", this);
+  endfunction
 
-  `include "tx_config_basic_seq.sv"
-  `include "tx_config_change_seq.sv"
-  `include "tx_config_illegal_seq.sv"
+  // callback for cfg_imp
+  function void write_cfg(tx_config_seq_item cfg);
+    factor_latched = cfg.factor;
+    bypass_latched = cfg.bypass;
+    mode_latched   = cfg.mode;
+    rep_count      = 0;
+//     `uvm_info("SB","Config latched",UVM_LOW)
+  endfunction
 
-  `include "tx_base_vseq.sv"
-  `include "tx_basic_vseq.sv"
-  `include "tx_bypass_vseq.sv"
-  `include "tx_config_change_vseq.sv"
-  `include "tx_bypass_change_vseq.sv"
-  `include "tx_reset_vseq.sv"
-  `include "tx_illegal_cfg_vseq.sv"
+  // callback for data_in_imp
+  function void write_data_in(tx_data_seq_item data);
+    last_data = data;
+    if (bypass_latched)
+      rep_count = 1;
+    else
+      rep_count = (1 << (factor_latched + 1));
+  endfunction
 
-  // drivers
-  `include "tx_data_driver.sv"
-  `include "tx_config_driver.sv"
+  // callback for out_imp
+  function void write_out(tx_data_seq_item out);
+    if (bypass_latched) begin
+      if (out.i !== last_data.i || out.q !== last_data.q)
+        `uvm_error("SB","Bypass output mismatch")
+    end
+    else begin
+      if (mode_latched == 0) begin
+        // zero insertion: only first slot is data, others must be zero
+        if (rep_count > 1) begin
+          if (out.i != 0 || out.q != 0)
+            `uvm_error("SB","Zero insertion violation")
+        end
+      end
+      else begin
+        // sample-and-hold: always repeat last sample
+        if (out.i !== last_data.i || out.q !== last_data.q)
+          `uvm_error("SB","Sample & hold mismatch")
+      end
+    end
+  endfunction
 
-  // monitors
-  `include "tx_data_monitor.sv"
-  `include "tx_config_monitor.sv"
-  `include "tx_out_monitor.sv"
-
-  // agents
-  `include "tx_data_agent.sv"
-  `include "tx_config_agent.sv"
-  `include "tx_out_agent.sv"
-
-  // scoreboard & coverage
-  `include "tx_scoreboard.sv"
-  `include "tx_coverage.sv"
-
-  // env & tests
-  `include "tx_env.sv"
-  `include "base_test.sv"
-  `include "basic_test.sv"
-  `include "bypass_test.sv"
-  `include "config_change_test.sv"
-  `include "bypass_change_test.sv"
-  `include "reset_test.sv"
-  `include "illegal_config_test.sv"
-
-endpackage
+endclass

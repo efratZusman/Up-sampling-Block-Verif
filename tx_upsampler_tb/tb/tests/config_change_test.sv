@@ -1,6 +1,11 @@
 class config_change_test extends base_test;
   `uvm_component_utils(config_change_test)
 
+      function new(string name="config_change_test", uvm_component parent=null);
+    super.new(name,parent);
+  endfunction
+
+
   task run_phase(uvm_phase phase);
     tx_config_change_vseq vseq;
 

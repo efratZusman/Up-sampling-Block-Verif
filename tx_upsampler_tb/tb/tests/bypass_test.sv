@@ -1,5 +1,8 @@
 class bypass_test extends base_test;
   `uvm_component_utils(bypass_test)
+    function new(string name="bypass_test", uvm_component parent=null);
+    super.new(name,parent);
+  endfunction
 
   task run_phase(uvm_phase phase);
     tx_bypass_vseq vseq;

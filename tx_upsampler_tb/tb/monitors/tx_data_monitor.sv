@@ -33,7 +33,7 @@ class tx_data_monitor extends uvm_monitor;
     data_item.q     = data_vif.tx_data_q;
     data_item.valid = data_vif.tx_data_valid;
 
-    `uvm_info(get_type_name(),"DATA input collected",UVM_NONE)
+//     `uvm_info(get_type_name(),"DATA input collected",UVM_NONE)
     data_in_port.write(data_item);
   endtask
 

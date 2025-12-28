@@ -12,15 +12,29 @@ class tx_config_driver extends uvm_driver #(tx_config_seq_item);
     if(!uvm_config_db#(virtual config_if)::get(this,"","cfg_vif",cfg_vif))
       `uvm_fatal("NO_VIF","config_if not set for config driver")
   endfunction
+      
+task run_phase(uvm_phase phase);
 
-  task run_phase(uvm_phase phase);
-    forever begin
-      seq_item_port.get_next_item(req);
-      drive_cfg(req);
-      seq_item_port.item_done();
-      @(posedge cfg_vif.clk);
-    end
-  endtask
+  // ערכי ברירת מחדל יציבים
+  cfg_vif.upsampling_factor <= 2'b00;
+  cfg_vif.bypass_enable     <= 0;
+  cfg_vif.upsample_mode     <= 0;
+
+  @(posedge cfg_vif.clk);
+
+  forever begin
+    seq_item_port.get_next_item(req);
+
+    // דרייב סינכרוני
+    cfg_vif.upsampling_factor <= req.factor;
+    cfg_vif.bypass_enable     <= req.bypass;
+    cfg_vif.upsample_mode     <= req.mode;
+
+    @(posedge cfg_vif.clk);        // חובה – שחרור time
+
+    seq_item_port.item_done();
+  end
+endtask
 
   task drive_cfg(tx_config_seq_item req);
     cfg_vif.upsampling_factor <= req.factor;

@@ -1,3 +1,5 @@
+typedef class tx_env;
+
 class tx_base_vseq extends uvm_sequence;
   `uvm_object_utils(tx_base_vseq)
 
@@ -20,4 +22,5 @@ class tx_base_vseq extends uvm_sequence;
     if(starting_phase != null)
       starting_phase.drop_objection(this);
   endtask
+
 endclass

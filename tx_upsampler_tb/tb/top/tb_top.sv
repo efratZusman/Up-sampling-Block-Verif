@@ -1,7 +1,13 @@
-module tb_top;
+import uvm_pkg::*;
 
-  import uvm_pkg::*;
-  import tx_pkg::*;
+`include "data_if.sv"
+`include "config_if.sv"
+`include "out_if.sv"
+`include "tx_pkg.sv"
+
+import tx_pkg::*;   // <<< חובה
+
+module tb_top;
 
   logic clk;
   logic rst_n;
@@ -25,8 +31,6 @@ module tb_top;
   out_if    out_if_i(clk);
 
   assign data_if_i.rst_n = rst_n;
-  assign cfg_if_i.rst_n  = rst_n;
-  assign out_if_i.rst_n  = rst_n;
 
   // DUT
   tx_upsampler dut (
@@ -54,7 +58,46 @@ module tb_top;
     uvm_config_db#(virtual config_if)::set(null, "*", "cfg_vif", cfg_if_i);
     uvm_config_db#(virtual out_if)::set(null, "*", "out_vif", out_if_i);
 
-    run_test();
+    run_test("basic_test");
   end
+
+initial begin
+  $dumpfile("dump.vcd");
+
+  // להתחיל הקלטה מיד
+  #10ns;
+
+  // DATA IF
+  $dumpvars(0, tb_top.data_if_i.tx_data_i);
+  $dumpvars(0, tb_top.data_if_i.tx_data_q);
+  $dumpvars(0, tb_top.data_if_i.tx_data_valid);
+
+  // CFG IF
+  $dumpvars(0, tb_top.cfg_if_i.upsampling_factor);
+  $dumpvars(0, tb_top.cfg_if_i.bypass_enable);
+  $dumpvars(0, tb_top.cfg_if_i.upsample_mode);
+
+  // OUT IF
+  $dumpvars(0, tb_top.out_if_i.up_data_i);
+  $dumpvars(0, tb_top.out_if_i.up_data_q);
+  $dumpvars(0, tb_top.out_if_i.up_data_valid);
+  $dumpvars(0, tb_top.out_if_i.sample_count);
+  $dumpvars(0, tb_top.out_if_i.buffer_level);
+
+  // חלון הקלטה אמיתי
+  #5us;
+  $dumpoff;
+end
+
+
+
+
+initial begin
+  #1ms;
+  $display("EDA PLAYGROUND TIMEOUT – FORCED FINISH");
+  $finish;
+end
+
+
 
 endmodule

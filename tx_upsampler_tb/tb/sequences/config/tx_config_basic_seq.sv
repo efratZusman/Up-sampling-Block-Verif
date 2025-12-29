@@ -9,7 +9,7 @@ class tx_config_basic_seq extends uvm_sequence #(tx_config_seq_item);
     tx_config_seq_item req;
     req = tx_config_seq_item::type_id::create("req");
     start_item(req);
-    assert(req.randomize());
+    assert(req.randomize() with {bypass == 0;});  // Non-default: factor=8, sample_hold, bypass=0
     finish_item(req);
   endtask
 endclass

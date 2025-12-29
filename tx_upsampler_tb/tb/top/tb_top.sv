@@ -10,7 +10,6 @@ import tx_pkg::*;   // <<< חובה
 module tb_top;
 
   logic clk;
-  logic rst_n;
 
   // clock
   initial begin
@@ -21,9 +20,9 @@ module tb_top;
   // reset
   initial begin
     // assert reset at time 0 to initialize DUT state, then release after 2 clock edges
-    rst_n = 0;
+    data_if_i.rst_n = 0;
     repeat(2) @(posedge clk);
-    rst_n = 1;
+    data_if_i.rst_n = 1;
   end
 
   // interfaces
@@ -31,12 +30,10 @@ module tb_top;
   config_if cfg_if_i(clk);
   out_if    out_if_i(clk);
 
-  assign data_if_i.rst_n = rst_n;
-
   // DUT
   tx_upsampler dut (
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_n(data_if_i.rst_n),
 
     .tx_data_i(data_if_i.tx_data_i),
     .tx_data_q(data_if_i.tx_data_q),
@@ -70,7 +67,7 @@ initial begin
 
   // clock & reset
   $dumpvars(0, tb_top.clk);
-  $dumpvars(0, tb_top.rst_n);
+  $dumpvars(0, tb_top.data_if_i.rst_n);
 
   // DATA IF
   $dumpvars(0, tb_top.data_if_i.tx_data_i);

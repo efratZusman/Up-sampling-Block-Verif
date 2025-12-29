@@ -2,7 +2,7 @@ class tx_data_basic_seq extends uvm_sequence #(tx_data_seq_item);
   `uvm_object_utils(tx_data_basic_seq)
 
   // Configurable parameters instead of hardcoded values
-  int num_input_samples = 10;
+  int num_input_samples = 15;
   int upsampling_factor = 4;  // Default: 2, 4, 8, or 16
   int buffer_drain_margin = 20;  // Extra cycles for FIFO drain and output latency
 

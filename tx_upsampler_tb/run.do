@@ -1,7 +1,7 @@
 # 1. Initialize simulation with access and coverage enabled
 # Use existing test registered in the TB: "basic_test". If you prefer the TB to choose the test
 # via run_test("basic_test") you can remove +UVM_TESTNAME entirely.
-vsim -c -acdb +access+r +UVM_TESTNAME=basic_test tb_top
+vsim -c -acdb -sv_seed random +access+r +UVM_TESTNAME=reset_test tb_top
 
 # 2. Run the simulation until UVM test finishes (run -all waits until $finish)
 run -all

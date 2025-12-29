@@ -174,44 +174,34 @@ module tx_upsampler (
                 end
 
                 // 2) FIFO read & start repetition window if needed
-                // Output immediately with newly read data (no 1-cycle delay)
+                // Immediately output the newly read data in the same cycle
                 if (need_new) begin
                     hold_i <= read_data_i;
                     hold_q <= read_data_q;
                     rd_ptr <= rd_ptr + 4'd1;
-                    rep_idx <= factor_val - 5'd1;  // Set to remaining outputs needed
+                    rep_idx <= factor_val - 5'd1;  // Decrement one rep since we output it now
                     
-                    // Immediately start output with new data in same cycle
+                    // Immediately output the first sample in the read cycle
                     up_data_valid <= 1'b1;
-                    if (upsample_mode == ZERO_INSERT) begin
-                        up_data_i <= read_data_i;
-                        up_data_q <= read_data_q;
-                    end else begin
-                        up_data_i <= read_data_i;
-                        up_data_q <= read_data_q;
-                    end
+                    up_data_i <= read_data_i;
+                    up_data_q <= read_data_q;
                     sample_count <= sample_count + 8'd1;
 `ifdef DEBUG
-                    $display("FIFO read & output: rep_idx = %d, rd_ptr = %d, data_i = %d", factor_val - 5'd1, rd_ptr, read_data_i);
+                    $display("FIFO read & output: rep_idx set to %d, rd_ptr = %d, data_i = %d", factor_val - 5'd1, rd_ptr, read_data_i);
 `endif
                 end
-                // 3) Continue repetition: output same held sample with appropriate mode
+                
+                // 3) Continue output of remaining repetitions
                 else if ((!bypass_latched) && (rep_idx != 5'd0)) begin
                     up_data_valid <= 1'b1;
 
                     // Output based on current mode and repetition index
                     if (upsample_mode == ZERO_INSERT) begin
-                        if (rep_idx == (factor_val - 5'd1)) begin
-                            // First slot: output actual sample
-                            up_data_i <= hold_i;
-                            up_data_q <= hold_q;
-                        end else begin
-                            // Remaining slots: output zeros
-                            up_data_i <= 16'd0;
-                            up_data_q <= 16'd0;
-                        end
+                        // Zero insertion: output zeros for all remaining reps (first already output above)
+                        up_data_i <= 16'd0;
+                        up_data_q <= 16'd0;
                     end else begin
-                        // Sample-and-hold mode: repeat the sample
+                        // Sample-and-hold mode: repeat the sample for all reps
                         up_data_i <= hold_i;
                         up_data_q <= hold_q;
                     end
@@ -229,13 +219,17 @@ module tx_upsampler (
                 end
 
                 // 4) Update buffer_level based on actual FIFO operations
+                // When write and read happen simultaneously: data passes through, level unchanged
+                // Write only: level increases
+                // Read only: level decreases
                 begin : level_update
                     integer tmp;
                     tmp = buffer_level;
-                    if (do_write)
-                        tmp = tmp + 1;
-                    if (need_new)
-                        tmp = tmp - 1;
+                    if (do_write && !need_new)
+                        tmp = tmp + 1;  // Write without simultaneous read
+                    else if (!do_write && need_new)
+                        tmp = tmp - 1;  // Read without simultaneous write
+                    // If both: data passes through, level stays same
                     if (tmp < 0)
                         tmp = 0;
                     else if (tmp > 16)

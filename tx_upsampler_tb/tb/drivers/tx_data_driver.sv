@@ -16,11 +16,12 @@ class tx_data_driver extends uvm_driver#(tx_data_seq_item);
   task run_phase(uvm_phase phase);
     tx_data_seq_item req;
 
-    // stable defaults (use blocking so outputs are stable immediately)
+    // Initialize all signals to known state before starting
     data_vif.tx_data_i   = 16'd0;
     data_vif.tx_data_q   = 16'd0;
     data_vif.tx_data_valid = 1'b0;
 
+    // Wait for reset to be fully released (1 posedge after initial defaults are set)
     @(posedge data_vif.clk);
 
     while (phase.get_state() != UVM_PHASE_DONE) begin
@@ -31,16 +32,16 @@ class tx_data_driver extends uvm_driver#(tx_data_seq_item);
         data_vif.tx_data_i   = req.i;
         data_vif.tx_data_q   = req.q;
         data_vif.tx_data_valid = req.valid;
-        @(posedge data_vif.clk);
+        @(posedge data_vif.clk);  // hold until next clock edge
       end
-
-      // Immediately deassert signals after item finishes (without extra cycle)
-      data_vif.tx_data_valid = 1'b0;
-      data_vif.tx_data_i   = 16'd0;
-      data_vif.tx_data_q   = 16'd0;
       
       seq_item_port.item_done();
     end
+    
+    // Final deassert at end of test
+    data_vif.tx_data_valid = 1'b0;
+    data_vif.tx_data_i   = 16'd0;
+    data_vif.tx_data_q   = 16'd0;
   endtask
 
 endclass

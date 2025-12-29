@@ -89,4 +89,45 @@ class tx_coverage extends uvm_component;
     $display("cfg bypass counts: off=%0d on=%0d", bypass_cnt0, bypass_cnt1);
   endfunction
 
+   // Report phase - display coverage statistics
+//     virtual function void report_phase(uvm_phase phase);
+//         super.report_phase(phase);
+//         `uvm_info(get_type_name(), $sformatf("\n\n========== COVERAGE REPORT =========="), UVM_LOW)
+//         `uvm_info(get_type_name(), $sformatf("Overall Coverage: %.2f%%", cg_pattern_detector.get_coverage()), UVM_LOW)
+//         `uvm_info(get_type_name(), $sformatf("=====================================\n"), UVM_LOW)
+//     endfunction
+  // Report phase - detailed coverage statistics
+    virtual function void report_phase(uvm_phase phase);
+        real cp_mode_cov, cp_match_cov, cp_mask_cov, cp_types_a, cp_types_b, cx_cross;
+       
+        super.report_phase(phase);
+       
+        // Extracting individual coverage percentages
+        cp_mode_cov = cg_pattern_detector.cp_mode.get_inst_coverage();
+        cp_match_cov = cg_pattern_detector.cp_match_result.get_inst_coverage();
+        cp_mask_cov = cg_pattern_detector.cp_mask_patterns.get_inst_coverage();
+        cp_types_a = cg_pattern_detector.cp_pattern_types_a.get_inst_coverage();
+        cp_types_b = cg_pattern_detector.cp_pattern_types_b.get_inst_coverage();
+        cx_cross   = cg_pattern_detector.cx_mode_match.get_inst_coverage();
+
+        `uvm_info(get_type_name(), $sformatf("\n" ,
+            "==========================================================\n",
+            "                DETAILED COVERAGE REPORT                  \n",
+            "==========================================================\n",
+            $sformatf("Overall Coverage        : %5.2f%%\n", cg_pattern_detector.get_coverage()),
+            "----------------------------------------------------------\n",
+            $sformatf("CP Mode Select         : %5.2f%%\n", cp_mode_cov),
+            $sformatf("CP Match Result        : %5.2f%%\n", cp_match_cov),
+            $sformatf("CP Mask Patterns       : %5.2f%%\n", cp_mask_cov),
+            $sformatf("CP Data Stream A Types : %5.2f%%\n", cp_types_a),
+            $sformatf("CP Data Stream B Types : %5.2f%%\n", cp_types_b),
+            $sformatf("CX Mode x Match Cross  : %5.2f%%\n", cx_cross),
+            "=========================================================="), UVM_LOW)
+           
+        // Check for specific bottlenecks
+        if (cp_mask_cov < 50.0) begin
+             `uvm_warning(get_type_name(), "Low coverage detected in Mask Patterns! Check constraints.")
+        end
+    endfunction
+
 endclass

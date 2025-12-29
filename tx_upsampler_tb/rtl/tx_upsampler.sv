@@ -32,9 +32,7 @@ module tx_upsampler (
     // Stream-latched configuration
     // -------------------------
     reg        in_stream;
-    reg        bypass_latched;
-    reg [1:0]  factor_latched;
-    reg        mode_latched;
+    reg        bypass_latched;  // Bypass is latched at stream start only
 
     // -------------------------
     // Upsampling state
@@ -44,9 +42,9 @@ module tx_upsampler (
     reg [4:0]  rep_idx;        // enough for up to 16
     reg [4:0]  factor_val;     // 2/4/8/16
 
-    // Decode factor from latched factor
+    // Decode factor from current input (allows mid-stream changes)
     always @(*) begin
-        case (factor_latched)
+        case (upsampling_factor)
             2'b00: factor_val = 5'd2;
             2'b01: factor_val = 5'd4;
             2'b10: factor_val = 5'd8;
@@ -78,8 +76,15 @@ module tx_upsampler (
     // including the very first valid cycle
     wire do_write = stream_active && (!bypass_cfg) && tx_data_valid && (!fifo_full);
 
+    // Effective FIFO not empty: has data now OR writing data this cycle (combinatorial lookahead)
+    wire effective_fifo_empty = fifo_empty && !do_write;
+
     // Read when we need a new held sample (rep_idx==0) and FIFO has data
-    wire need_new = (!bypass_cfg) && (rep_idx == 5'd0) && (!fifo_empty);
+    wire need_new = (!bypass_cfg) && (rep_idx == 5'd0) && (!effective_fifo_empty);
+
+    // Bypass path: use input data directly if writing to the location we're reading from
+    wire [15:0] read_data_i = (do_write && (wr_ptr == rd_ptr)) ? tx_data_i : buf_i[rd_ptr];
+    wire [15:0] read_data_q = (do_write && (wr_ptr == rd_ptr)) ? tx_data_q : buf_q[rd_ptr];
 
     // Output valid in upsampling mode when we have an active repetition window
     wire up_active = (!bypass_cfg) && (rep_idx != 5'd0);
@@ -101,8 +106,6 @@ module tx_upsampler (
 
             in_stream      <= 1'b0;
             bypass_latched <= 1'b0;
-            factor_latched <= 2'b00; // default 1:2 :contentReference[oaicite:3]{index=3}
-            mode_latched   <= ZERO_INSERT; // default zero insertion :contentReference[oaicite:4]{index=4}
 
             up_data_i      <= 16'd0;
             up_data_q      <= 16'd0;
@@ -115,13 +118,12 @@ module tx_upsampler (
 `endif
         end else begin
             // -------------------------
-            // Stream tracking + latch config at stream start only
+            // Stream tracking: bypass is latched at stream start only
+            // But factor and mode can change mid-stream
             // -------------------------
             if (stream_start) begin
                 in_stream      <= 1'b1;
-                bypass_latched <= bypass_enable;
-                factor_latched <= upsampling_factor;
-                mode_latched   <= upsample_mode;
+                bypass_latched <= bypass_enable;  // Latch bypass at stream start only
 `ifdef DEBUG
                 $display("Stream started: in_stream = %b, tx_data_valid = %b", in_stream, tx_data_valid);
 `endif
@@ -131,6 +133,9 @@ module tx_upsampler (
                 $display("Stream ended: in_stream = %b", in_stream);
 `endif
             end
+            
+            // Factor and mode can be updated during stream (always read current values)
+            // No need to latch these separately - use current inputs directly below
 
             // -------------------------
             // BYPASS (1:1) – use current/latched bypass (covers first cycle too)
@@ -169,51 +174,61 @@ module tx_upsampler (
                 end
 
                 // 2) FIFO read & start repetition window if needed
+                // Output immediately with newly read data (no 1-cycle delay)
                 if (need_new) begin
-                    hold_i <= buf_i[rd_ptr];
-                    hold_q <= buf_q[rd_ptr];
+                    hold_i <= read_data_i;
+                    hold_q <= read_data_q;
                     rd_ptr <= rd_ptr + 4'd1;
-                    rep_idx <= 5'd1;
+                    rep_idx <= factor_val - 5'd1;  // Set to remaining outputs needed
+                    
+                    // Immediately start output with new data in same cycle
+                    up_data_valid <= 1'b1;
+                    if (upsample_mode == ZERO_INSERT) begin
+                        up_data_i <= read_data_i;
+                        up_data_q <= read_data_q;
+                    end else begin
+                        up_data_i <= read_data_i;
+                        up_data_q <= read_data_q;
+                    end
+                    sample_count <= sample_count + 8'd1;
 `ifdef DEBUG
-                    $display("FIFO read: rep_idx = %d, rd_ptr = %d", rep_idx, rd_ptr);
+                    $display("FIFO read & output: rep_idx = %d, rd_ptr = %d, data_i = %d", factor_val - 5'd1, rd_ptr, read_data_i);
 `endif
                 end
-
-                // 3) Produce output if active (rep_idx != 0)
-                if ((!bypass_latched) && (rep_idx != 5'd0)) begin
+                // 3) Continue repetition: output same held sample with appropriate mode
+                else if ((!bypass_latched) && (rep_idx != 5'd0)) begin
                     up_data_valid <= 1'b1;
 
-                    // slot_index = rep_idx - 1 (0..factor-1)
-                    if (mode_latched == ZERO_INSERT) begin
-                        if (rep_idx == 5'd1) begin
+                    // Output based on current mode and repetition index
+                    if (upsample_mode == ZERO_INSERT) begin
+                        if (rep_idx == (factor_val - 5'd1)) begin
+                            // First slot: output actual sample
                             up_data_i <= hold_i;
                             up_data_q <= hold_q;
                         end else begin
+                            // Remaining slots: output zeros
                             up_data_i <= 16'd0;
                             up_data_q <= 16'd0;
                         end
                     end else begin
+                        // Sample-and-hold mode: repeat the sample
                         up_data_i <= hold_i;
                         up_data_q <= hold_q;
                     end
 
                     sample_count <= sample_count + 8'd1;
 `ifdef DEBUG
-                    $display("Producing data: up_data_valid = %b, up_data_i = %d, up_data_q = %d, sample_count = %d", up_data_valid, up_data_i, up_data_q, sample_count);
+                    $display("Producing data: rep_idx = %d, factor_val = %d, up_data_i = %d", rep_idx, factor_val, up_data_i);
 `endif
 
-                    // advance repetition window
-                    if (rep_idx == factor_val) begin
-                        rep_idx <= 5'd0;
-                    end else begin
-                        rep_idx <= rep_idx + 5'd1;
-                    end
+                    // Decrement repetition window
+                    rep_idx <= rep_idx - 5'd1;
                 end else begin
-                    // EXPLICIT: When rep_idx==0 or bypass, stop output
+                    // No output active
                     up_data_valid <= 1'b0;
                 end
 
-                // 4) Update buffer_level deterministically (write - read)
+                // 4) Update buffer_level based on actual FIFO operations
                 begin : level_update
                     integer tmp;
                     tmp = buffer_level;
@@ -227,7 +242,7 @@ module tx_upsampler (
                         tmp = 16;
                     buffer_level <= tmp;
 `ifdef DEBUG
-                    $display("Buffer level updated: old=%0d write=%b read=%b new=%0d", buffer_level, do_write, need_new, tmp);
+                    $display("Buffer level: write=%b read=%b old=%0d new=%0d", do_write, need_new, buffer_level, tmp);
 `endif
                 end
             end

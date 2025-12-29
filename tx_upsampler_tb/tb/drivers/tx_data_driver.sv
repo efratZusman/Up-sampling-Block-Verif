@@ -34,11 +34,10 @@ class tx_data_driver extends uvm_driver#(tx_data_seq_item);
         @(posedge data_vif.clk);
       end
 
-      // Immediately deassert signals after item finishes
+      // Immediately deassert signals after item finishes (without extra cycle)
       data_vif.tx_data_valid = 1'b0;
       data_vif.tx_data_i   = 16'd0;
       data_vif.tx_data_q   = 16'd0;
-      @(posedge data_vif.clk);
       
       seq_item_port.item_done();
     end
